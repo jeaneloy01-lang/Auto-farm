@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (O VERDADEIRO - SEM KICK, GUI ORIGINAL E ZERO DELAY)
+--         LOW HIGH HUB - V80 (CONTADOR DE ENTREGAS + JITTER HUMANO)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,6 +10,7 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
+local entregasConcluidas = 0 -- O NOSSO CONTADOR COMEÇA AQUI
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -44,7 +45,6 @@ local function PosicionarPlataforma(cframeDestino)
         plat.CanCollide = true
         plat.Parent = workspace
     end
-    -- Move a plataforma junto com você para o destino
     plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
 end
 
@@ -62,7 +62,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 180 -- Velocidade Máxima segura
+    local passo = 180 
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -126,7 +126,6 @@ local function EscanearMaiorValor()
 
     local tempoLimite = 0
     
-    -- 120 frames com task.wait() puro = Exatos 2 segundos na velocidade da luz
     while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
@@ -154,12 +153,10 @@ local function EscanearMaiorValor()
             end
         end
         
-        -- CONDIÇÃO 1: Se os 9 carregarem na tela, RETORNA IMEDIATAMENTE!
         if totalComValor == 9 and melhorJob then
             return melhorJob, maiorValor
         end
 
-        -- CONDIÇÃO 2: Se bater os 2 segundos (115 frames) e estiver preso no 8, atira no maior!
         if tempoLimite >= 115 and melhorJob then
             return melhorJob, maiorValor
         end
@@ -260,7 +257,6 @@ local function IniciarAutoFarm()
                 local hrp = char.HumanoidRootPart
 
                 if not JobAtivoNaTela() then
-                    -- Fica na Garagem lendo a tela para não bugar a interface
                     local localGaragem = CFrame.new(-25677, 24, -5878)
                     PosicionarPlataforma(localGaragem)
                     MoverSuperRapido(localGaragem)
@@ -271,7 +267,6 @@ local function IniciarAutoFarm()
                     local melhorJob, valorDoJob = EscanearMaiorValor()
                     
                     if melhorJob then
-                        -- BOTE INSTANTÂNEO ANTES DE QUALQUER DELAY
                         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromptTransJob"):FireServer(melhorJob, "Start")
                         Notificar("Low High", "SNIPER RÁPIDO: " .. melhorJob .. " | R$ " .. tostring(valorDoJob))
                         
@@ -383,7 +378,17 @@ local function IniciarAutoFarm()
                             task.wait(0.5)
                         end
                     end
-                    if _G.AutoFarm then Notificar("Low High", "Trabalho Concluído Rápido!") end
+                    
+                    -- ============================================================
+                    -- NOTIFICAÇÃO DE SUCESSO COM O CONTADOR E ATRASO ANTI-BAN
+                    -- ============================================================
+                    if _G.AutoFarm then 
+                        entregasConcluidas = entregasConcluidas + 1
+                        Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!") 
+                    end
+                    
+                    -- Pausa aleatória entre 1.5 e 3.5s pra enganar o padrão do Anti-Cheat
+                    task.wait(math.random(15, 35) / 10) 
                     
                     local localGaragem = CFrame.new(-25677, 24, -5878)
                     PosicionarPlataforma(localGaragem)
@@ -444,6 +449,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
             _G.AutoFarm = false
             return
         end
+        entregasConcluidas = 0 -- Zera a contagem toda vez que você liga o Farm
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
         ToggleBtn.Text = "FARM TURBO LIGADO"
         IniciarAutoFarm()
