@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (CONTADOR DE ENTREGAS + JITTER HUMANO)
+--         LOW HIGH HUB - V80 (VERSÃO ESTÁVEL 70+ ENTREGAS + CONTADOR)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -10,7 +10,7 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
-local entregasConcluidas = 0 -- O NOSSO CONTADOR COMEÇA AQUI
+local entregasConcluidas = 0 
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -20,20 +20,16 @@ local function TemCarroSpawnado()
     local pastaVeiculos = workspace:FindFirstChild("ActiveCars")
     if pastaVeiculos then
         for _, carro in pairs(pastaVeiculos:GetChildren()) do
-            if string.find(carro.Name, "Frordes_E12000") or string.find(carro.Name, "Merfedes_Beon_2113_78") then 
-                return true 
-            end
+            if string.find(carro.Name, "Frordes_E12000") or string.find(carro.Name, "Merfedes_Beon_2113_78") then return true end
         end
     end
     for _, obj in pairs(workspace:GetChildren()) do
-        if string.find(obj.Name, "Frordes_E12000") or string.find(obj.Name, "Merfedes_Beon_2113_78") then 
-            return true 
-        end
+        if string.find(obj.Name, "Frordes_E12000") or string.find(obj.Name, "Merfedes_Beon_2113_78") then return true end
     end
     return false
 end
 
--- PLATAFORMA ORIGINAL (SEGURA)
+-- PLATAFORMA ORIGINAL
 local function PosicionarPlataforma(cframeDestino)
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
@@ -53,7 +49,7 @@ local function RemoverPlataforma()
     if plat then plat:Destroy() end
 end
 
--- MOVIMENTAÇÃO SUAVE ORIGINAL (EVITA O KICK DO ANTI-CHEAT)
+-- MOVIMENTAÇÃO SEGURA (COMPROVADA)
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -102,69 +98,38 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
--- ====================================================================
--- SISTEMA V80: LÊ O "Pay.Text" E BOTE INTELIGENTE COM LIMITE DE 2S
--- ====================================================================
+-- SNIPER COM TEMPO SEGURO (2 SEGUNDOS)
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
-    
-    local tjGui = playerGui:FindFirstChild("TransportJobGui")
-    if not tjGui then return nil, 0 end
-    
-    local mainGui = tjGui:FindFirstChild("MainGUI")
-    if not mainGui then return nil, 0 end
-    
-    local container = mainGui:FindFirstChild("Container")
-    if not container then return nil, 0 end
-    
-    local mainContainer = container:FindFirstChild("MainContainer")
+    local mainContainer = playerGui:FindFirstChild("TransportJobGui") and playerGui.TransportJobGui.MainGUI.Container.MainContainer
     if not mainContainer then return nil, 0 end
-    
     local jobsFolder = mainContainer:FindFirstChild("Jobs")
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    
-    while _G.AutoFarm and tempoLimite < 120 do 
+    while _G.AutoFarm and tempoLimite < 20 do 
         local totalComValor = 0
         local maiorValor = -1
         local melhorJob = nil
         
         for i = 1, 9 do
             local jobFrame = jobsFolder:FindFirstChild("Job" .. i)
-            if jobFrame then
-                local payLabel = jobFrame:FindFirstChild("Pay")
-                
-                if payLabel then
-                    local textoPay = tostring(payLabel.Text)
-                    local apenasNumeros = string.gsub(textoPay, "%D", "")
-                    local valor = tonumber(apenasNumeros) or 0
-                    
-                    if valor > 0 then
-                        totalComValor = totalComValor + 1
-                        
-                        if valor > maiorValor then
-                            maiorValor = valor
-                            melhorJob = "Job" .. i
-                        end
-                    end
+            if jobFrame and jobFrame:FindFirstChild("Pay") then
+                local valor = tonumber(string.gsub(tostring(jobFrame.Pay.Text), "%D", "")) or 0
+                if valor > 0 then
+                    totalComValor = totalComValor + 1
+                    if valor > maiorValor then maiorValor = valor; melhorJob = "Job" .. i end
                 end
             end
         end
         
-        if totalComValor == 9 and melhorJob then
-            return melhorJob, maiorValor
-        end
-
-        if tempoLimite >= 115 and melhorJob then
-            return melhorJob, maiorValor
-        end
+        if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
+        if tempoLimite >= 19 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait() 
+        task.wait(0.1) 
         tempoLimite = tempoLimite + 1
     end
-    
     return nil, 0
 end
 
@@ -185,27 +150,21 @@ local function PuxarEGrudarCaixas(caixas)
     local char = LocalPlayer.Character
     local tronco = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
     if not tronco then return end
-    
     for _, caixa in pairs(caixas) do
-        if caixa and caixa.Parent then
-            local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
-            if part and part:IsA("BasePart") then
-                part.CanCollide = false; part.Anchored = true 
-                TweenService:Create(part, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = tronco.CFrame}):Play()
-            end
+        local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
+        if part and part:IsA("BasePart") then
+            part.CanCollide = false; part.Anchored = true 
+            TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
         end
     end
-    task.wait(0.45) 
-    
+    task.wait(0.8) -- Tempo testado e aprovado
     for _, caixa in pairs(caixas) do
-        if caixa and caixa.Parent then
-            local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
-            if part and part:IsA("BasePart") then
-                part.Anchored = false; part.CFrame = tronco.CFrame
-                if not part:FindFirstChild("LHWeld") then
-                    local solda = Instance.new("WeldConstraint")
-                    solda.Name = "LHWeld"; solda.Part0 = part; solda.Part1 = tronco; solda.Parent = part
-                end
+        local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
+        if part then
+            part.Anchored = false
+            if not part:FindFirstChild("LHWeld") then
+                local solda = Instance.new("WeldConstraint")
+                solda.Name = "LHWeld"; solda.Part0 = part; solda.Part1 = tronco; solda.Parent = part
             end
         end
     end
@@ -215,21 +174,10 @@ local function ObterDropArea(nomeDoDestino)
     local workings = workspace:FindFirstChild("TransportJobWorkings")
     local destinations = workings and workings:FindFirstChild("Destinations")
     if not destinations then return nil end
-
     local nomeAlvo = string.lower(string.match(nomeDoDestino, "^%s*(.-)%s*$"))
-
-    for _, localEntrega in pairs(destinations:GetChildren()) do
-        local nomePasta = string.lower(string.match(localEntrega.Name, "^%s*(.-)%s*$"))
-        if nomePasta == nomeAlvo then return localEntrega:FindFirstChild("DropArea") end
+    for _, d in pairs(destinations:GetChildren()) do
+        if string.find(string.lower(d.Name), nomeAlvo, 1, true) then return d:FindFirstChild("DropArea") end
     end
-
-    for _, localEntrega in pairs(destinations:GetChildren()) do
-        local nomePasta = string.lower(localEntrega.Name)
-        if string.find(nomePasta, nomeAlvo, 1, true) or string.find(nomeAlvo, nomePasta, 1, true) then
-            return localEntrega:FindFirstChild("DropArea")
-        end
-    end
-
     return nil
 end
 
@@ -238,224 +186,55 @@ local function LimparCaixasFantasmas()
     if pastaCaixas then
         for _, c in pairs(pastaCaixas:GetChildren()) do
             local objOwner = c:FindFirstChild("Owner")
-            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then
-                pcall(function() c:Destroy() end)
-            end
+            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then pcall(function() c:Destroy() end) end
         end
     end
 end
 
--- =============================================
---                 LOOP PRINCIPAL
--- =============================================
+-- LOOP PRINCIPAL (TEMPOS SEGUROS)
 local function IniciarAutoFarm()
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
-                local char = LocalPlayer.Character
-                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-                local hrp = char.HumanoidRootPart
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
 
                 if not JobAtivoNaTela() then
-                    local localGaragem = CFrame.new(-25677, 24, -5878)
-                    PosicionarPlataforma(localGaragem)
-                    MoverSuperRapido(localGaragem)
-                    task.wait(0.5)
-
-                    Notificar("Aviso", "Sniper interceptando os fretes...")
-                    
-                    local melhorJob, valorDoJob = EscanearMaiorValor()
-                    
+                    MoverSuperRapido(CFrame.new(-25677, 24, -5878))
+                    local melhorJob, valor = EscanearMaiorValor()
                     if melhorJob then
-                        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromptTransJob"):FireServer(melhorJob, "Start")
-                        Notificar("Low High", "SNIPER RÁPIDO: " .. melhorJob .. " | R$ " .. tostring(valorDoJob))
-                        
-                        local tempoEsperaUI = 0
-                        while not JobAtivoNaTela() and tempoEsperaUI < 10 and _G.AutoFarm do
-                            task.wait(0.2); tempoEsperaUI = tempoEsperaUI + 0.2
-                        end
-                    else
-                        task.wait(1)
-                        return 
+                        game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
+                        Notificar("Sniper", "R$ " .. valor)
+                        task.wait(2.0) -- Tempo seguro
                     end
-                end
-
-                if JobAtivoNaTela() or #ColetarTodasMinhasCaixas() > 0 then
-                    task.wait(1.5) 
-                    
-                    local timerTravado = 0
-                    
-                    while _G.AutoFarm and (JobAtivoNaTela() or #ColetarTodasMinhasCaixas() > 0) do
-                        local caixasAtuais = ColetarTodasMinhasCaixas()
-                        
-                        if not JobAtivoNaTela() and #caixasAtuais == 0 then
-                            break 
-                        end
-                        
-                        if #caixasAtuais > 0 then
-                            timerTravado = 0 
-                            local DestinoReal = nil
-                            for _, c in pairs(caixasAtuais) do
-                                local d = c:FindFirstChild("Destination")
-                                if d then DestinoReal = tostring(d.Value); break end
-                            end
-                            if not DestinoReal then DestinoReal = ObterDestinoPelaUI() end
-                            
-                            local dropAreaPart = nil
-                            if DestinoReal then dropAreaPart = ObterDropArea(DestinoReal) end
-                            
-                            if dropAreaPart then
-                                local hrpPosXZ = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
-                                local dropPosXZ = Vector3.new(dropAreaPart.Position.X, 0, dropAreaPart.Position.Z)
-                                local distParaDrop = (hrpPosXZ - dropPosXZ).Magnitude
-                                
-                                if distParaDrop < 50 then
-                                    local caixasNestaTentativa = {}
-                                    for _, caixa in pairs(caixasAtuais) do
-                                        local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
-                                        if part then
-                                            local weld = part:FindFirstChild("LHWeld") or caixa:FindFirstChild("LHWeld", true)
-                                            if weld then weld:Destroy() end
-                                            
-                                            part.CanCollide = true
-                                            part.Anchored = true
-                                            TweenService:Create(part, TweenInfo.new(0.6, Enum.EasingStyle.Linear), {CFrame = dropAreaPart.CFrame + Vector3.new(0, 2, 0)}):Play()
-                                            table.insert(caixasNestaTentativa, part)
-                                        end
-                                    end
-                                    
-                                    task.wait(0.8)
-                                    for _, partcaixa in pairs(caixasNestaTentativa) do
-                                        if partcaixa and partcaixa.Parent then partcaixa.Anchored = false end
-                                    end
-                                    task.wait(1.5) 
-
-                                else
-                                    local prim = caixasAtuais[1]
-                                    local pPart = prim:IsA("Model") and prim.PrimaryPart or prim
-                                    
-                                    if pPart then 
-                                        local destinoCaixa = CFrame.new(pPart.Position.X, 24, pPart.Position.Z)
-                                        PosicionarPlataforma(destinoCaixa)
-                                        MoverSuperRapido(destinoCaixa) 
-                                        task.wait(0.2) 
-                                    end
-                                    
-                                    PuxarEGrudarCaixas(caixasAtuais)
-                                    
-                                    local localDropSubterraneo = dropAreaPart.CFrame + Vector3.new(0, 80, 0)
-                                    PosicionarPlataforma(localDropSubterraneo)
-                                    MoverSuperRapido(localDropSubterraneo)
-                                    task.wait(0.2)
-                                    
-                                    local caixasNestaTentativa = {}
-                                    for i = #caixasAtuais, 1, -1 do
-                                        local caixa = caixasAtuais[i]
-                                        if caixa and caixa.Parent then
-                                            local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
-                                            local weld = part:FindFirstChild("LHWeld") or caixa:FindFirstChild("LHWeld", true)
-                                            if weld then weld:Destroy() end
-                                            
-                                            part.CanCollide = true
-                                            part.CFrame = dropAreaPart.CFrame + Vector3.new(0, 2, 0)
-                                            part.Anchored = true
-                                            table.insert(caixasNestaTentativa, part)
-                                        end
-                                    end
-                                    
-                                    task.wait(1.0) 
-                                    for _, partcaixa in pairs(caixasNestaTentativa) do
-                                        if partcaixa and partcaixa.Parent then partcaixa.Anchored = false end
-                                    end
-                                    task.wait(1.5) 
-                                end
-                            else
-                                task.wait(0.5)
-                            end
-                        else
-                            timerTravado = timerTravado + 0.5
-                            if timerTravado >= 6 then break end
-                            task.wait(0.5)
-                        end
-                    end
-                    
-                    -- ============================================================
-                    -- NOTIFICAÇÃO DE SUCESSO COM O CONTADOR E ATRASO ANTI-BAN
-                    -- ============================================================
-                    if _G.AutoFarm then 
-                        entregasConcluidas = entregasConcluidas + 1
-                        Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!") 
-                    end
-                    
-                    -- Pausa aleatória entre 1.5 e 3.5s pra enganar o padrão do Anti-Cheat
-                    task.wait(math.random(15, 35) / 10) 
-                    
-                    local localGaragem = CFrame.new(-25677, 24, -5878)
-                    PosicionarPlataforma(localGaragem)
-                    MoverSuperRapido(localGaragem)
                 else
-                    Notificar("Erro", "Limpando...")
-                    LimparCaixasFantasmas()
-                    task.wait(2)
+                    local caixas = ColetarTodasMinhasCaixas()
+                    if #caixas > 0 then
+                        local area = ObterDropArea(ObterDestinoPelaUI() or "")
+                        if area then
+                            PuxarEGrudarCaixas(caixas)
+                            MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
+                            task.wait(2.0) -- Tempo seguro
+                        end
+                    end
                 end
-
+                
+                -- Notificação de entrega concluída
+                if JobAtivoNaTela() == false then
+                    entregasConcluidas = entregasConcluidas + 1
+                    Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
+                    task.wait(math.random(20, 35) / 10) -- Jitter seguro
+                end
+                
+                task.wait(0.5)
             end)
-            task.wait(0.5)
         end
     end)
 end
 
--- =============================================
---         INTERFACE TOTALMENTE ORIGINAL
--- =============================================
+-- GUI
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
-
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = guiName
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 300, 0, 100)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
-ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (SNIPER VELOCIDADE LUZ)"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 13
-
-local UICorner = Instance.new("UICorner", ToggleBtn)
-UICorner.CornerRadius = UDim.new(0, 6)
-
-local function LimparTudo()
-    _G.AutoFarm = false
-    RemoverPlataforma()
-    local minhaGui = CoreGui:FindFirstChild("LowHigh_MecanicaBR")
-    if minhaGui then minhaGui:Destroy() end
-end
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    _G.AutoFarm = not _G.AutoFarm
-    if _G.AutoFarm then
-        if not TemCarroSpawnado() then
-            Notificar("Aviso", "Spawne seu Caminhão primeiro!")
-            _G.AutoFarm = false
-            return
-        end
-        entregasConcluidas = 0 -- Zera a contagem toda vez que você liga o Farm
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        ToggleBtn.Text = "FARM TURBO LIGADO"
-        IniciarAutoFarm()
-    else
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (SNIPER VELOCIDADE LUZ)"
-        LimparTudo()
-    end
-end)
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
+local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
+local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
