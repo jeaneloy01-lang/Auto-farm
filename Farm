@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (SNIPER 2S + TÉCNICA DO TAPETE MÁGICO)
+--         LOW HIGH HUB - V80 (O VERDADEIRO - SEM KICK, GUI ORIGINAL E ZERO DELAY)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -32,53 +32,46 @@ local function TemCarroSpawnado()
     return false
 end
 
-local function RemoverPlataforma()
-    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-    if plat then plat:Destroy() end
-end
-
--- ====================================================================
--- A SUA IDEIA GENIAL: A PLATAFORMA SEGUE VOCÊ (TAPETE MÁGICO)
--- ====================================================================
-local function MoverSuperRapido(cframeDestino)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    
-    -- Garante que a plataforma existe antes de começar a se mover
+-- PLATAFORMA ORIGINAL (SEGURA)
+local function PosicionarPlataforma(cframeDestino)
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
         plat = Instance.new("Part")
         plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(30, 2, 30) -- Tamanho ideal pra não escorregar
+        plat.Size = Vector3.new(20, 1, 20)
         plat.Anchored = true
         plat.Transparency = 1 
         plat.CanCollide = true
         plat.Parent = workspace
     end
+    -- Move a plataforma junto com você para o destino
+    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
+end
 
+local function RemoverPlataforma()
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if plat then plat:Destroy() end
+end
+
+-- MOVIMENTAÇÃO SUAVE ORIGINAL (EVITA O KICK DO ANTI-CHEAT)
+local function MoverSuperRapido(cframeDestino)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
     local startCFrame = hrp.CFrame
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
-    -- Trava o personagem para não bugar a física
     hrp.Anchored = true 
-    hrp.Velocity = Vector3.new(0,0,0)
-    
     local passo = 180 -- Velocidade Máxima segura
     local steps = math.ceil(dist / passo)
+    
     if steps < 1 then steps = 1 end 
     
-    -- O LOOP MÁGICO: Você e o chão se movem juntos milimetricamente
     for i = 1, steps do 
-        local proximaPosicao = startCFrame:Lerp(cframeDestino, i/steps)
-        hrp.CFrame = proximaPosicao
-        plat.CFrame = proximaPosicao - Vector3.new(0, 3.5, 0) -- O chão segue o seu pé!
+        hrp.CFrame = startCFrame:Lerp(cframeDestino, i/steps)
         task.wait() 
     end
-    
-    -- Fixa no destino final
     hrp.CFrame = cframeDestino
-    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
     hrp.Anchored = false
 end
 
@@ -110,7 +103,7 @@ local function ObterDestinoPelaUI()
 end
 
 -- ====================================================================
--- SISTEMA V80: REGRA DOS 2 SEGUNDOS
+-- SISTEMA V80: LÊ O "Pay.Text" E BOTE INTELIGENTE COM LIMITE DE 2S
 -- ====================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -133,8 +126,9 @@ local function EscanearMaiorValor()
 
     local tempoLimite = 0
     
-    while _G.AutoFarm and tempoLimite < 20 do -- 20 ticks = Exatos 2 segundos
-        local jobsCarregados = 0
+    -- 120 frames com task.wait() puro = Exatos 2 segundos na velocidade da luz
+    while _G.AutoFarm and tempoLimite < 120 do 
+        local totalComValor = 0
         local maiorValor = -1
         local melhorJob = nil
         
@@ -149,7 +143,8 @@ local function EscanearMaiorValor()
                     local valor = tonumber(apenasNumeros) or 0
                     
                     if valor > 0 then
-                        jobsCarregados = jobsCarregados + 1
+                        totalComValor = totalComValor + 1
+                        
                         if valor > maiorValor then
                             maiorValor = valor
                             melhorJob = "Job" .. i
@@ -159,17 +154,17 @@ local function EscanearMaiorValor()
             end
         end
         
-        -- CONDIÇÃO 1: Se os 9 Jobs apareceram e carregaram, pega o maior na hora!
-        if jobsCarregados == 9 and melhorJob then
+        -- CONDIÇÃO 1: Se os 9 carregarem na tela, RETORNA IMEDIATAMENTE!
+        if totalComValor == 9 and melhorJob then
+            return melhorJob, maiorValor
+        end
+
+        -- CONDIÇÃO 2: Se bater os 2 segundos (115 frames) e estiver preso no 8, atira no maior!
+        if tempoLimite >= 115 and melhorJob then
             return melhorJob, maiorValor
         end
         
-        -- CONDIÇÃO 2: Se passou exatos 2 segundos e não chegou no Job9, pega o maior disponível
-        if tempoLimite >= 19 and melhorJob then
-            return melhorJob, maiorValor
-        end
-        
-        task.wait(0.1) 
+        task.wait() 
         tempoLimite = tempoLimite + 1
     end
     
@@ -258,26 +253,25 @@ end
 -- =============================================
 local function IniciarAutoFarm()
     task.spawn(function()
-        local esperandoNotificacao = false 
-        
         while _G.AutoFarm do
             pcall(function()
                 local char = LocalPlayer.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-                
-                if not JobAtivoNaTela() then
-                    local localGaragem = CFrame.new(-25677, 24, -5878)
-                    MoverSuperRapido(localGaragem) -- Vai com o tapete mágico pra garagem
+                local hrp = char.HumanoidRootPart
 
-                    if not esperandoNotificacao then
-                        Notificar("Aviso", "Aguardando novos fretes...")
-                        esperandoNotificacao = true
-                    end
+                if not JobAtivoNaTela() then
+                    -- Fica na Garagem lendo a tela para não bugar a interface
+                    local localGaragem = CFrame.new(-25677, 24, -5878)
+                    PosicionarPlataforma(localGaragem)
+                    MoverSuperRapido(localGaragem)
+                    task.wait(0.5)
+
+                    Notificar("Aviso", "Sniper interceptando os fretes...")
                     
                     local melhorJob, valorDoJob = EscanearMaiorValor()
                     
                     if melhorJob then
-                        esperandoNotificacao = false
+                        -- BOTE INSTANTÂNEO ANTES DE QUALQUER DELAY
                         game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("PromptTransJob"):FireServer(melhorJob, "Start")
                         Notificar("Low High", "SNIPER RÁPIDO: " .. melhorJob .. " | R$ " .. tostring(valorDoJob))
                         
@@ -316,7 +310,7 @@ local function IniciarAutoFarm()
                             if DestinoReal then dropAreaPart = ObterDropArea(DestinoReal) end
                             
                             if dropAreaPart then
-                                local hrpPosXZ = Vector3.new(char.HumanoidRootPart.Position.X, 0, char.HumanoidRootPart.Position.Z)
+                                local hrpPosXZ = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
                                 local dropPosXZ = Vector3.new(dropAreaPart.Position.X, 0, dropAreaPart.Position.Z)
                                 local distParaDrop = (hrpPosXZ - dropPosXZ).Magnitude
                                 
@@ -347,14 +341,16 @@ local function IniciarAutoFarm()
                                     
                                     if pPart then 
                                         local destinoCaixa = CFrame.new(pPart.Position.X, 24, pPart.Position.Z)
+                                        PosicionarPlataforma(destinoCaixa)
                                         MoverSuperRapido(destinoCaixa) 
                                         task.wait(0.2) 
                                     end
                                     
                                     PuxarEGrudarCaixas(caixasAtuais)
                                     
-                                    local destinoDrop = dropAreaPart.CFrame + Vector3.new(0, 80, 0)
-                                    MoverSuperRapido(destinoDrop) -- Tapete mágico voando pro destino!
+                                    local localDropSubterraneo = dropAreaPart.CFrame + Vector3.new(0, 80, 0)
+                                    PosicionarPlataforma(localDropSubterraneo)
+                                    MoverSuperRapido(localDropSubterraneo)
                                     task.wait(0.2)
                                     
                                     local caixasNestaTentativa = {}
@@ -390,6 +386,7 @@ local function IniciarAutoFarm()
                     if _G.AutoFarm then Notificar("Low High", "Trabalho Concluído Rápido!") end
                     
                     local localGaragem = CFrame.new(-25677, 24, -5878)
+                    PosicionarPlataforma(localGaragem)
                     MoverSuperRapido(localGaragem)
                 else
                     Notificar("Erro", "Limpando...")
@@ -423,7 +420,7 @@ MainFrame.Draggable = true
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (SNIPER SEGURO)"
+ToggleBtn.Text = "INICIAR V80 (SNIPER VELOCIDADE LUZ)"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -452,7 +449,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (SNIPER SEGURO)"
+        ToggleBtn.Text = "INICIAR V80 (SNIPER VELOCIDADE LUZ)"
         LimparTudo()
     end
 end)
