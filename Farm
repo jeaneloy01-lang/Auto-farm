@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (VERSÃO ESTÁVEL 70+ ENTREGAS + CONTADOR)
+--         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -98,7 +98,9 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
--- SNIPER COM TEMPO SEGURO (2 SEGUNDOS)
+-- ==============================================================================
+-- SNIPER SUPER RÁPIDO: LÊ A TELA FRAME POR FRAME (ZERO ATRASO NA LEITURA)
+-- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -108,7 +110,8 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    while _G.AutoFarm and tempoLimite < 20 do 
+    -- Alterado para 120 frames com task.wait() puro = leitura instantânea sem engasgo
+    while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
         local melhorJob = nil
@@ -125,9 +128,9 @@ local function EscanearMaiorValor()
         end
         
         if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
-        if tempoLimite >= 19 and melhorJob then return melhorJob, maiorValor end
+        if tempoLimite >= 115 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait(0.1) 
+        task.wait() -- Sem o 0.1, roda na velocidade da luz
         tempoLimite = tempoLimite + 1
     end
     return nil, 0
@@ -191,7 +194,9 @@ local function LimparCaixasFantasmas()
     end
 end
 
--- LOOP PRINCIPAL (TEMPOS SEGUROS)
+-- ==============================================================================
+-- LOOP PRINCIPAL (TEMPOS SEGUROS MANTIDOS PARA NÃO DAR RATE LIMIT)
+-- ==============================================================================
 local function IniciarAutoFarm()
     task.spawn(function()
         while _G.AutoFarm do
@@ -205,7 +210,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0) -- Tempo seguro
+                        task.wait(2.0) -- Tempo seguro pra viagem não ser rápida demais
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -214,7 +219,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0) -- Tempo seguro
+                            task.wait(2.0) -- Tempo seguro pra dropar
                         end
                     end
                 end
@@ -223,7 +228,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(20, 35) / 10) -- Jitter seguro
+                    task.wait(math.random(20, 35) / 10) -- Jitter seguro Anti-Cheat
                 end
                 
                 task.wait(0.5)
