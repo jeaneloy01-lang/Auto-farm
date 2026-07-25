@@ -243,3 +243,16 @@ pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destro
 local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
 local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
 local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
+
+-- SISTEMA ANTI-AFK (SIMULA O CLIQUE NO BOTÃO DE PULAR A CADA 5 MINUTOS)
+task.spawn(function()
+    while true do
+        task.wait(300) -- 300 segundos = 5 minutos
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid").Jump = true
+            end
+        end)
+    end
+end)
