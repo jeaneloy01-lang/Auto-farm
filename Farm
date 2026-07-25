@@ -1,5 +1,6 @@
 -- ==============================================================================
 --         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
+--               COM ANTI-AFK MOBILE REALISTA (BYPASS ANTI-CHEAT)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,10 +8,65 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
 local entregasConcluidas = 0 
+
+-- ==============================================================================
+-- ANTI-AFK SISTEMA: PREVINE KICK DO ROBLOX E KICK DO ANTI-CHEAT DO JOGO
+-- ==============================================================================
+
+-- 1. Previne o erro padrão de 20 minutos de inatividade do Roblox
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+-- 2. Simula um dedo clicando no botão de pulo do Mobile
+local function SimularDedoPulando()
+    task.spawn(function()
+        while _G.AutoFarm do
+            -- Espera um tempo aleatório entre 45 e 110 segundos para parecer humano
+            task.wait(math.random(45, 110))
+            
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            
+            if hum then
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local touchGui = playerGui and playerGui:FindFirstChild("TouchGui")
+                local jumpButton = touchGui and touchGui:FindFirstChild("JumpButton", true)
+                
+                if jumpButton then
+                    -- Calcula o centro exato do botão na tela do celular
+                    local pos = jumpButton.AbsolutePosition
+                    local size = jumpButton.AbsoluteSize
+                    local centroX = pos.X + (size.X / 2)
+                    local centroY = pos.Y + (size.Y / 2)
+                    
+                    -- Simula o toque do dedo (0 = Pressionar, 1 = Soltar)
+                    pcall(function()
+                        VirtualInputManager:SendTouchEvent(0, 0, centroX, centroY) -- Dedo encosta
+                        task.wait(math.random(1, 3) / 10) -- Tempo que o dedo fica na tela (0.1s a 0.3s)
+                        VirtualInputManager:SendTouchEvent(0, 1, centroX, centroY) -- Dedo solta
+                    end)
+                else
+                    -- Fallback: Se por algum motivo o botão não carregar, ele força o pulo nativo
+                    VirtualUser:ButtonJump()
+                    hum.Jump = true
+                end
+            end
+        end
+    end)
+end
+
+-- ==============================================================================
+-- FUNÇÕES ORIGINAIS DO SCRIPT
+-- ==============================================================================
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -29,7 +85,6 @@ local function TemCarroSpawnado()
     return false
 end
 
--- PLATAFORMA ORIGINAL
 local function PosicionarPlataforma(cframeDestino)
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
@@ -49,7 +104,6 @@ local function RemoverPlataforma()
     if plat then plat:Destroy() end
 end
 
--- MOVIMENTAÇÃO SEGURA (COMPROVADA)
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -98,9 +152,6 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
--- ==============================================================================
--- SNIPER SUPER RÁPIDO: LÊ A TELA FRAME POR FRAME (ZERO ATRASO NA LEITURA)
--- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -110,7 +161,6 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    -- Alterado para 120 frames com task.wait() puro = leitura instantânea sem engasgo
     while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
@@ -130,7 +180,7 @@ local function EscanearMaiorValor()
         if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
         if tempoLimite >= 115 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait() -- Sem o 0.1, roda na velocidade da luz
+        task.wait() 
         tempoLimite = tempoLimite + 1
     end
     return nil, 0
@@ -160,7 +210,7 @@ local function PuxarEGrudarCaixas(caixas)
             TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
         end
     end
-    task.wait(0.8) -- Tempo testado e aprovado
+    task.wait(0.8) 
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part then
@@ -195,9 +245,11 @@ local function LimparCaixasFantasmas()
 end
 
 -- ==============================================================================
--- LOOP PRINCIPAL (TEMPOS SEGUROS MANTIDOS PARA NÃO DAR RATE LIMIT)
+-- LOOP PRINCIPAL
 -- ==============================================================================
 local function IniciarAutoFarm()
+    SimularDedoPulando() -- Inicia o Anti-AFK paralelo junto com o Farm
+    
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
@@ -210,7 +262,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0) -- Tempo seguro pra viagem não ser rápida demais
+                        task.wait(2.0) 
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -219,16 +271,15 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0) -- Tempo seguro pra dropar
+                            task.wait(2.0) 
                         end
                     end
                 end
                 
-                -- Notificação de entrega concluída
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(20, 35) / 10) -- Jitter seguro Anti-Cheat
+                    task.wait(math.random(20, 35) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -237,9 +288,16 @@ local function IniciarAutoFarm()
     end)
 end
 
+-- ==============================================================================
 -- GUI
+-- ==============================================================================
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
 local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
 local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
-local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
+local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); 
+ToggleBtn.MouseButton1Click:Connect(function() 
+    _G.AutoFarm = not _G.AutoFarm; 
+    ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); 
+    if _G.AutoFarm then IniciarAutoFarm() end 
+end)
