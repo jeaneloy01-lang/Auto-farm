@@ -10,7 +10,7 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
-_G.UltimaAcao = tick() -- Variável para controlar a segurança do Anti-AFK
+_G.UltimaAcao = tick() -- Variável para monitorar o tempo de inatividade
 local entregasConcluidas = 0 
 
 local function Notificar(titulo, texto)
@@ -52,7 +52,7 @@ end
 
 -- MOVIMENTAÇÃO SEGURA (COMPROVADA)
 local function MoverSuperRapido(cframeDestino)
-    _G.UltimaAcao = tick() -- Atualiza o tempo para o anti-AFK saber que estamos em movimento
+    _G.UltimaAcao = tick() -- Atualiza o tempo para indicar que o script está ativo
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
@@ -249,19 +249,19 @@ local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
 local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
 local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
 
--- SISTEMA ANTI-AFK 100% SEGURO (SÓ PULA SE ESTIVER PARADO HÁ MAIS DE 30 SEGUNDOS)
+-- SISTEMA ANTI-AFK (SE FICAR 2 SEGUNDOS PARADO, PULA DE FORMA SEGURA)
 task.spawn(function()
     while true do
-        task.wait(300) -- A cada 5 minutos tenta verificar
+        task.wait(2)
         pcall(function()
-            -- Só executa o pulo se o script estiver em silêncio/parado há mais de 30s (nunca durante entrega/teleport)
-            if tick() - _G.UltimaAcao > 30 then
+            if tick() - _G.UltimaAcao > 2 then
                 local char = LocalPlayer.Character
                 if char then
                     local hrp = char:FindFirstChild("HumanoidRootPart")
                     local humanoid = char:FindFirstChildOfClass("Humanoid")
                     if hrp and humanoid and not hrp.Anchored and humanoid.FloorMaterial ~= Enum.FloorMaterial.Air then
                         humanoid.Jump = true
+                        _G.UltimaAcao = tick()
                     end
                 end
             end
