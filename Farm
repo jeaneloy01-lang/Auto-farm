@@ -1,6 +1,6 @@
 -- ==============================================================================
 --         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
---               COM ANTI-AFK DE CÂMERA SEGURO (ANTI-DETECÇÃO)
+--               COM ANTI-AFK DEFINITIVO PARA DELTA MOBILE
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -16,26 +16,30 @@ _G.AutoFarm = false
 local entregasConcluidas = 0 
 
 -- ==============================================================================
--- ANTI-AFK SEGURO: MOVE A CÂMERA LEVEMENTE E BURLA O INATIVO DO ROBLOX
+-- ANTI-AFK DEFINITIVO (MÉTODO GETCONNECTIONS)
 -- ==============================================================================
 
--- 1. Previne o kick de 20 minutos de inatividade do Roblox
+-- 1. Desativa a conexão nativa do Roblox que aciona o Erro 278
+pcall(function()
+    for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
+        connection:Disable()
+    end
+end)
+
+-- 2. Fallback por garantia (caso o Roblox tente forçar o evento)
 LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- 2. Simula o jogador olhando ao redor (Bypass Anti-Cheat de Inatividade)
+-- 3. Giro de câmera microscópico (Bypass para Anti-Cheats de Inatividade Internos)
 local function SimularPresencaHumana()
     task.spawn(function()
-        while _G.AutoFram do
-            -- Espera um tempo aleatório entre 30 a 60 segundos
+        while _G.AutoFarm do
             task.wait(math.random(30, 60))
-            
             pcall(function()
                 local camera = workspace.CurrentCamera
                 if camera then
-                    -- Dá um giro microscópico na câmera (invisível para você, mas o servidor registra como movimento)
                     local anguloAleatorio = math.rad(math.random(-3, 3))
                     camera.CFrame = camera.CFrame * CFrame.Angles(0, anguloAleatorio, 0)
                 end
@@ -186,7 +190,7 @@ end
 -- LOOP PRINCIPAL
 -- ==============================================================================
 local function IniciarAutoFarm()
-    SimularPresencaHumana() -- Ativa a simulação de câmera sutil
+    SimularPresencaHumana() 
     
     task.spawn(function()
         while _G.AutoFarm do
@@ -217,7 +221,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(25, 40) / 10) -- Pausa levemente maior para aliviar o servidor nas entregas longas
+                    task.wait(math.random(25, 40) / 10) 
                 end
                 
                 task.wait(0.5)
