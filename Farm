@@ -1,6 +1,6 @@
 -- ==============================================================================
 --         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
---               COM ANTI-AFK DEFINITIVO PARA DELTA MOBILE
+--               COM PASSO 160 + PULO AUTOMÁTICO ANTI-CHEAT (BYPASS)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -16,40 +16,21 @@ _G.AutoFarm = false
 local entregasConcluidas = 0 
 
 -- ==============================================================================
--- ANTI-AFK DEFINITIVO (MÉTODO GETCONNECTIONS)
+-- ANTI-AFK DEFINITIVO (BLOQUEIA ERRO 278 DO ROBLOX)
 -- ==============================================================================
-
--- 1. Desativa a conexão nativa do Roblox que aciona o Erro 278
 pcall(function()
     for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
         connection:Disable()
     end
 end)
 
--- 2. Fallback por garantia (caso o Roblox tente forçar o evento)
 LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- 3. Giro de câmera microscópico (Bypass para Anti-Cheats de Inatividade Internos)
-local function SimularPresencaHumana()
-    task.spawn(function()
-        while _G.AutoFarm do
-            task.wait(math.random(30, 60))
-            pcall(function()
-                local camera = workspace.CurrentCamera
-                if camera then
-                    local anguloAleatorio = math.rad(math.random(-3, 3))
-                    camera.CFrame = camera.CFrame * CFrame.Angles(0, anguloAleatorio, 0)
-                end
-            end)
-        end
-    end)
-end
-
 -- ==============================================================================
--- FUNÇÕES DO SCRIPT
+-- FUNÇÕES DO SCRIPT (COM PASSO 160 E PULO NATURAL)
 -- ==============================================================================
 
 local function Notificar(titulo, texto)
@@ -64,7 +45,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 180 
+    local passo = 160 -- Ajustado para 160 conforme solicitado
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -75,6 +56,14 @@ local function MoverSuperRapido(cframeDestino)
     end
     hrp.CFrame = cframeDestino
     hrp.Anchored = false
+    
+    -- Simula um pulo leve logo após o teleporte para enganar o anti-cheat
+    pcall(function()
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.Jump = true
+        end
+    end)
 end
 
 local function JobAtivoNaTela()
@@ -176,6 +165,7 @@ local function PuxarEGrudarCaixas(caixas)
 end
 
 local function ObterDropArea(nomeDoDestino)
+    let workings = workspace:FindFirstChild("TransportJobWorkings")
     local workings = workspace:FindFirstChild("TransportJobWorkings")
     local destinations = workings and workings:FindFirstChild("Destinations")
     if not destinations then return nil end
@@ -187,11 +177,23 @@ local function ObterDropArea(nomeDoDestino)
 end
 
 -- ==============================================================================
--- LOOP PRINCIPAL
+-- LOOP PRINCIPAL COM PULO PERIÓDICO ANTI-BOT
 -- ==============================================================================
 local function IniciarAutoFarm()
-    SimularPresencaHumana() 
-    
+    -- Thread extra simulando pulos aleatórios para manter o anti-cheat enganado
+    task.spawn(function()
+        while _G.AutoFarm do
+            task.wait(math.random(25, 50))
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.Jump = true
+                end
+            end)
+        end
+    end)
+
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
