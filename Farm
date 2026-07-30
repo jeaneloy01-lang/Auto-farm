@@ -45,7 +45,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 160 -- Ajustado para 160 conforme solicitado
+    local passo = 150 -- Ajustado para 160 conforme solicitado
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
