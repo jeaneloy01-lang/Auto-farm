@@ -1,6 +1,5 @@
 -- ==============================================================================
 --         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
---               COM PASSO 160 + PULO AUTOMÁTICO ANTI-CHEAT (BYPASS)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -8,35 +7,49 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
-local VirtualUser = game:GetService("VirtualUser")
-
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
 local entregasConcluidas = 0 
 
--- ==============================================================================
--- ANTI-AFK DEFINITIVO (BLOQUEIA ERRO 278 DO ROBLOX)
--- ==============================================================================
-pcall(function()
-    for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
-        connection:Disable()
-    end
-end)
-
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
-
--- ==============================================================================
--- FUNÇÕES DO SCRIPT (COM PASSO 160 E PULO NATURAL)
--- ==============================================================================
-
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
 end
 
+local function TemCarroSpawnado()
+    local pastaVeiculos = workspace:FindFirstChild("ActiveCars")
+    if pastaVeiculos then
+        for _, carro in pairs(pastaVeiculos:GetChildren()) do
+            if string.find(carro.Name, "Frordes_E12000") or string.find(carro.Name, "Merfedes_Beon_2113_78") then return true end
+        end
+    end
+    for _, obj in pairs(workspace:GetChildren()) do
+        if string.find(obj.Name, "Frordes_E12000") or string.find(obj.Name, "Merfedes_Beon_2113_78") then return true end
+    end
+    return false
+end
+
+-- PLATAFORMA ORIGINAL
+local function PosicionarPlataforma(cframeDestino)
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if not plat then
+        plat = Instance.new("Part")
+        plat.Name = "LH_Plat_Subterranea"
+        plat.Size = Vector3.new(20, 1, 20)
+        plat.Anchored = true
+        plat.Transparency = 1 
+        plat.CanCollide = true
+        plat.Parent = workspace
+    end
+    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
+end
+
+local function RemoverPlataforma()
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if plat then plat:Destroy() end
+end
+
+-- MOVIMENTAÇÃO SEGURA (COMPROVADA)
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -45,7 +58,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 150 -- Ajustado para 160 conforme solicitado
+    local passo = 150 
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -56,14 +69,6 @@ local function MoverSuperRapido(cframeDestino)
     end
     hrp.CFrame = cframeDestino
     hrp.Anchored = false
-    
-    -- Simula um pulo leve logo após o teleporte para enganar o anti-cheat
-    pcall(function()
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.Jump = true
-        end
-    end)
 end
 
 local function JobAtivoNaTela()
@@ -93,6 +98,9 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
+-- ==============================================================================
+-- SNIPER SUPER RÁPIDO: LÊ A TELA FRAME POR FRAME (ZERO ATRASO NA LEITURA)
+-- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -165,7 +173,6 @@ local function PuxarEGrudarCaixas(caixas)
 end
 
 local function ObterDropArea(nomeDoDestino)
-    let workings = workspace:FindFirstChild("TransportJobWorkings")
     local workings = workspace:FindFirstChild("TransportJobWorkings")
     local destinations = workings and workings:FindFirstChild("Destinations")
     if not destinations then return nil end
@@ -176,24 +183,20 @@ local function ObterDropArea(nomeDoDestino)
     return nil
 end
 
+local function LimparCaixasFantasmas()
+    local pastaCaixas = workspace:FindFirstChild("GrabStuff")
+    if pastaCaixas then
+        for _, c in pairs(pastaCaixas:GetChildren()) do
+            local objOwner = c:FindFirstChild("Owner")
+            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then pcall(function() c:Destroy() end) end
+        end
+    end
+end
+
 -- ==============================================================================
--- LOOP PRINCIPAL COM PULO PERIÓDICO ANTI-BOT
+-- LOOP PRINCIPAL
 -- ==============================================================================
 local function IniciarAutoFarm()
-    -- Thread extra simulando pulos aleatórios para manter o anti-cheat enganado
-    task.spawn(function()
-        while _G.AutoFarm do
-            task.wait(math.random(25, 50))
-            pcall(function()
-                local char = LocalPlayer.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.Jump = true
-                end
-            end)
-        end
-    end)
-
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
@@ -223,7 +226,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(25, 40) / 10) 
+                    task.wait(math.random(20, 35) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -232,16 +235,9 @@ local function IniciarAutoFarm()
     end)
 end
 
--- ==============================================================================
--- GUI
--- ==============================================================================
+-- GUI ORIGINAL
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
 local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
 local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
-local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); 
-ToggleBtn.MouseButton1Click:Connect(function() 
-    _G.AutoFarm = not _G.AutoFarm; 
-    ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); 
-    if _G.AutoFarm then IniciarAutoFarm() end 
-end)
+local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
