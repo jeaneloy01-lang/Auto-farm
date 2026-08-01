@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
+--         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + TELEPORTE INSTANTÂNEO)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -49,26 +49,12 @@ local function RemoverPlataforma()
     if plat then plat:Destroy() end
 end
 
--- MOVIMENTAÇÃO SEGURA (COMPROVADA)
+-- TELEPORTE INSTANTÂNEO
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    local startCFrame = hrp.CFrame
-    local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
-    
-    hrp.Anchored = true 
-    local passo = 150 
-    local steps = math.ceil(dist / passo)
-    
-    if steps < 1 then steps = 1 end 
-    
-    for i = 1, steps do 
-        hrp.CFrame = startCFrame:Lerp(cframeDestino, i/steps)
-        task.wait() 
-    end
     hrp.CFrame = cframeDestino
-    hrp.Anchored = false
 end
 
 local function JobAtivoNaTela()
