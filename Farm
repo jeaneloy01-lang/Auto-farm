@@ -1,5 +1,5 @@
 -- ==============================================================================
---         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
+--         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + FÍSICA ESTABILIZADA)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -49,7 +49,9 @@ local function RemoverPlataforma()
     if plat then plat:Destroy() end
 end
 
--- MOVIMENTAÇÃO SEGURA (COMPROVADA)
+-- ==============================================================================
+-- MOVIMENTAÇÃO COM CORREÇÃO DE FÍSICA (EVITA A QUEDA NO VOID)
+-- ==============================================================================
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -58,7 +60,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 100 
+    local passo = 100 -- Ajustado para 100 como você pediu
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -68,6 +70,9 @@ local function MoverSuperRapido(cframeDestino)
         task.wait() 
     end
     hrp.CFrame = cframeDestino
+    
+    -- MÁGICA AQUI: Espera a física da plataforma carregar antes de soltar o corpo
+    task.wait(0.1) 
     hrp.Anchored = false
 end
 
@@ -98,9 +103,6 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
--- ==============================================================================
--- SNIPER SUPER RÁPIDO: LÊ A TELA FRAME POR FRAME (ZERO ATRASO NA LEITURA)
--- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -110,7 +112,6 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    -- 120 frames com task.wait() puro = leitura instantânea sem engasgo
     while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
@@ -194,9 +195,6 @@ local function LimparCaixasFantasmas()
     end
 end
 
--- ==============================================================================
--- LOOP PRINCIPAL (TEMPOS SEGUROS MANTIDOS PARA NÃO DAR RATE LIMIT)
--- ==============================================================================
 local function IniciarAutoFarm()
     task.spawn(function()
         while _G.AutoFarm do
@@ -210,7 +208,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0) -- Tempo seguro pra viagem não ser rápida demais
+                        task.wait(2.0)
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -219,16 +217,15 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0) -- Tempo seguro pra dropar
+                            task.wait(2.0)
                         end
                     end
                 end
                 
-                -- Notificação de entrega concluída
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(20, 35) / 10) -- Jitter seguro Anti-Cheat
+                    task.wait(math.random(20, 35) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -237,9 +234,7 @@ local function IniciarAutoFarm()
     end)
 end
 
--- =============================================
--- INTERFACE TOTALMENTE ORIGINAL (RESTAURADA)
--- =============================================
+-- GUI
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
 
@@ -254,7 +249,6 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Arredondamento do fundo da janela (Opcional pra ficar mais premium)
 local FrameCorner = Instance.new("UICorner", MainFrame)
 FrameCorner.CornerRadius = UDim.new(0, 8)
 
@@ -267,7 +261,6 @@ ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.TextSize = 13
 
--- A MÁGICA QUE EU TINHA DELETADO: O botão redondinho voltou!
 local UICorner = Instance.new("UICorner", ToggleBtn)
 UICorner.CornerRadius = UDim.new(0, 6)
 
@@ -286,7 +279,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
             _G.AutoFarm = false
             return
         end
-        entregasConcluidas = 0 -- Zera a contagem toda vez que você liga o Farm
+        entregasConcluidas = 0
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
         ToggleBtn.Text = "FARM TURBO LIGADO"
         IniciarAutoFarm()
