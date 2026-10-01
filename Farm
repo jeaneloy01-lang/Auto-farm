@@ -1,6 +1,5 @@
 -- ==============================================================================
 --         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
---          BORDAS ARREDONDADAS + PULO SEGURO (BYPASS ANTI-CHEAT 267)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -8,30 +7,10 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
-local VirtualUser = game:GetService("VirtualUser")
-
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
 local entregasConcluidas = 0 
-
--- ==============================================================================
--- ANTI-AFK DEFINITIVO (BLOQUEIA ERRO 278 DO ROBLOX)
--- ==============================================================================
-pcall(function()
-    for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
-        connection:Disable()
-    end
-end)
-
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
-
--- ==============================================================================
--- FUNÇÕES DO SCRIPT RESTAURADAS
--- ==============================================================================
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -50,6 +29,7 @@ local function TemCarroSpawnado()
     return false
 end
 
+-- PLATAFORMA ORIGINAL
 local function PosicionarPlataforma(cframeDestino)
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
@@ -69,6 +49,7 @@ local function RemoverPlataforma()
     if plat then plat:Destroy() end
 end
 
+-- MOVIMENTAÇÃO SEGURA (COMPROVADA)
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -77,7 +58,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 150 -- Reduzi pouquíssima coisa de 160 para 150 por segurança extra do Anti-Cheat
+    local passo = 180 
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -87,18 +68,7 @@ local function MoverSuperRapido(cframeDestino)
         task.wait() 
     end
     hrp.CFrame = cframeDestino
-    
-    -- Pausa microscópica para o servidor registrar a chegada antes de desancorar
-    task.wait(0.1)
     hrp.Anchored = false
-    
-    -- Pulo Seguro: Só pula depois que já estiver desancorado e estabilizado
-    task.delay(0.2, function()
-        pcall(function()
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.Jump = true end
-        end)
-    end)
 end
 
 local function JobAtivoNaTela()
@@ -128,6 +98,9 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
+-- ==============================================================================
+-- SNIPER SUPER RÁPIDO: LÊ A TELA FRAME POR FRAME (ZERO ATRASO NA LEITURA)
+-- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -137,6 +110,7 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
+    -- Alterado para 120 frames com task.wait() puro = leitura instantânea sem engasgo
     while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
@@ -156,7 +130,7 @@ local function EscanearMaiorValor()
         if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
         if tempoLimite >= 115 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait() 
+        task.wait() -- Sem o 0.1, roda na velocidade da luz
         tempoLimite = tempoLimite + 1
     end
     return nil, 0
@@ -186,7 +160,7 @@ local function PuxarEGrudarCaixas(caixas)
             TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
         end
     end
-    task.wait(0.8) 
+    task.wait(0.8) -- Tempo testado e aprovado
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part then
@@ -210,27 +184,20 @@ local function ObterDropArea(nomeDoDestino)
     return nil
 end
 
+local function LimparCaixasFantasmas()
+    local pastaCaixas = workspace:FindFirstChild("GrabStuff")
+    if pastaCaixas then
+        for _, c in pairs(pastaCaixas:GetChildren()) do
+            local objOwner = c:FindFirstChild("Owner")
+            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then pcall(function() c:Destroy() end) end
+        end
+    end
+end
+
 -- ==============================================================================
--- LOOP PRINCIPAL COM PULO PERIÓDICO SEGURO
+-- LOOP PRINCIPAL (TEMPOS SEGUROS MANTIDOS PARA NÃO DAR RATE LIMIT)
 -- ==============================================================================
 local function IniciarAutoFarm()
-    -- Thread extra simulando pulos aleatórios APENAS quando não estiver teleportando
-    task.spawn(function()
-        while _G.AutoFarm do
-            task.wait(math.random(30, 55))
-            pcall(function()
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                
-                -- Se ele estiver Anchored (teleportando), NÃO PULA para não bugar o Anti-Cheat
-                if hum and hrp and hrp.Anchored == false then
-                    hum.Jump = true
-                end
-            end)
-        end
-    end)
-
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
@@ -243,7 +210,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0) 
+                        task.wait(2.0) -- Tempo seguro pra viagem não ser rápida demais
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -252,15 +219,16 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0) 
+                            task.wait(2.0) -- Tempo seguro pra dropar
                         end
                     end
                 end
                 
+                -- Notificação de entrega concluída
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(25, 40) / 10) 
+                    task.wait(math.random(20, 35) / 10) -- Jitter seguro Anti-Cheat
                 end
                 
                 task.wait(0.5)
@@ -269,41 +237,9 @@ local function IniciarAutoFarm()
     end)
 end
 
--- ==============================================================================
--- GUI COM BORDAS CURVAS (UICorner)
--- ==============================================================================
+-- GUI
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
-
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = guiName
-
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 300, 0, 100)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
--- Adiciona a curva no Menu
-local FrameCorner = Instance.new("UICorner", MainFrame)
-FrameCorner.CornerRadius = UDim.new(0, 12)
-
-local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Size = UDim2.new(0, 220, 0, 50)
-ToggleBtn.Position = UDim2.new(0.5, -110, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80"
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 18
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-
--- Adiciona a curva no Botão
-local BtnCorner = Instance.new("UICorner", ToggleBtn)
-BtnCorner.CornerRadius = UDim.new(0, 8)
-
-ToggleBtn.MouseButton1Click:Connect(function() 
-    _G.AutoFarm = not _G.AutoFarm; 
-    ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(50, 205, 50) or Color3.fromRGB(255, 50, 50); 
-    if _G.AutoFarm then IniciarAutoFarm() end 
-end)
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = guiName;
+local MainFrame = Instance.new("Frame", ScreenGui); MainFrame.Size = UDim2.new(0, 300, 0, 100); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.Active = true; MainFrame.Draggable = true
+local ToggleBtn = Instance.new("TextButton", MainFrame); ToggleBtn.Size = UDim2.new(0, 200, 0, 50); ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25); ToggleBtn.Text = "INICIAR V80"; ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ToggleBtn.MouseButton1Click:Connect(function() _G.AutoFarm = not _G.AutoFarm; ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0); if _G.AutoFarm then IniciarAutoFarm() end end)
