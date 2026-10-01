@@ -20,11 +20,11 @@ local function TemCarroSpawnado()
     local pastaVeiculos = workspace:FindFirstChild("ActiveCars")
     if pastaVeiculos then
         for _, carro in pairs(pastaVeiculos:GetChildren()) do
-            if string.find(carro.Name, "Frordes_E12000") or string.find(carro.Name, "Merfedes_Beon_2113_78") or string.find(carro.Name, "Frordes_8015") then return true end
+            if string.find(carro.Name, "Frordes_E12000") or string.find(carro.Name, "Merfedes_Beon_2113_78") then return true end
         end
     end
     for _, obj in pairs(workspace:GetChildren()) do
-        if string.find(obj.Name, "Frordes_E12000") or string.find(obj.Name, "Merfedes_Beon_2113_78") or string.find(obj.Name, "Frordes_8015") then return true end
+        if string.find(obj.Name, "Frordes_E12000") or string.find(obj.Name, "Merfedes_Beon_2113_78") then return true end
     end
     return false
 end
@@ -58,7 +58,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 100 
+    local passo = 150 
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
