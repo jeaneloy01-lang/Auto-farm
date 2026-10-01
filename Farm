@@ -45,7 +45,7 @@ local function MoverSuperRapido(cframeDestino)
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     hrp.Anchored = true 
-    local passo = 160 -- Ajustado para 160 conforme solicitado
+    local passo = 160 
     local steps = math.ceil(dist / passo)
     
     if steps < 1 then steps = 1 end 
@@ -165,7 +165,6 @@ local function PuxarEGrudarCaixas(caixas)
 end
 
 local function ObterDropArea(nomeDoDestino)
-    let workings = workspace:FindFirstChild("TransportJobWorkings")
     local workings = workspace:FindFirstChild("TransportJobWorkings")
     local destinations = workings and workings:FindFirstChild("Destinations")
     if not destinations then return nil end
