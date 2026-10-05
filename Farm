@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (FÍSICA TWEEN PERFEITA + BYPASS ANTI-CHEAT 267 E 278)
+-- LOW HIGH HUB - V80 (BYPASS SUPREMO: TAPETE MÁGICO + ANTI-AFK DELTA)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -13,7 +13,7 @@ _G.AutoFarm = false
 local entregasConcluidas = 0 
 
 -- ==============================================================================
--- ANTI-AFK DEFINITIVO (BLOQUEIA KICK DO ROBLOX DE 20 MIN)
+-- ANTI-AFK (FORÇADO PARA DELTA)
 -- ==============================================================================
 pcall(function()
     for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
@@ -26,9 +26,6 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- ==============================================================================
--- FUNÇÕES GERAIS
--- ==============================================================================
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
 end
@@ -52,55 +49,52 @@ local function RemoverPlataforma()
 end
 
 -- ==============================================================================
--- NOVO SISTEMA TWEEN (MOVIMENTO LISO COM A PLATAFORMA)
+-- SISTEMA WELD: O BONECO É SOLDADO NA PLATAFORMA (BURLA SPEEDHACK 100%)
 -- ==============================================================================
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    local startCFrame = hrp.CFrame
-    local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
         plat = Instance.new("Part")
         plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(20, 2, 20)
+        plat.Size = Vector3.new(15, 2, 15)
         plat.Anchored = true
         plat.Transparency = 1 
         plat.CanCollide = true
         plat.Parent = workspace
     end
     
-    hrp.Anchored = true 
+    -- Posição inicial da plataforma embaixo do jogador
+    plat.CFrame = hrp.CFrame - Vector3.new(0, 3.5, 0)
     
-    -- Calcula tempo baseado na distância para manter velocidade segura
-    local velocidadeMax = 3500 -- Studs por segundo
+    -- Solda o jogador na plataforma (o jogo acha que você está parado em cima de um objeto)
+    local solda = Instance.new("WeldConstraint")
+    solda.Part0 = plat
+    solda.Part1 = hrp
+    solda.Parent = plat
+    
+    -- Desancora o jogador para evitar flag de Lag Switch
+    hrp.Anchored = false 
+    
+    local dist = (hrp.Position - cframeDestino.Position).Magnitude
+    local velocidadeMax = 1800 -- Velocidade reduzida e segura. Não altere!
     local tempoViagem = dist / velocidadeMax
     if tempoViagem < 0.1 then tempoViagem = 0.1 end 
     
+    -- Move apenas a plataforma. Como você está colado nela, você vai junto.
     local infoTween = TweenInfo.new(tempoViagem, Enum.EasingStyle.Linear)
-    
-    -- Cria os Tweens simultâneos (Personagem e Plataforma)
-    local tweenHRP = TweenService:Create(hrp, infoTween, {CFrame = cframeDestino})
     local tweenPlat = TweenService:Create(plat, infoTween, {CFrame = cframeDestino - Vector3.new(0, 3.5, 0)})
     
-    tweenHRP:Play()
     tweenPlat:Play()
+    tweenPlat.Completed:Wait()
     
-    -- Espera o movimento terminar perfeitamente
-    tweenHRP.Completed:Wait()
-    
-    task.wait(0.1) -- Pausa da física (Salva do void)
-    hrp.Anchored = false
-    
-    -- Pulo Seguro para validar a física no Anti-Cheat após a viagem
-    task.delay(0.2, function()
-        pcall(function()
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.Jump = true end
-        end)
-    end)
+    -- Destrói a solda e corrige a posição final
+    solda:Destroy()
+    hrp.CFrame = cframeDestino
+    task.wait(0.1)
 end
 
 local function JobAtivoNaTela()
@@ -212,30 +206,28 @@ local function ObterDropArea(nomeDoDestino)
     return nil
 end
 
-local function LimparCaixasFantasmas()
-    local pastaCaixas = workspace:FindFirstChild("GrabStuff")
-    if pastaCaixas then
-        for _, c in pairs(pastaCaixas:GetChildren()) do
-            local objOwner = c:FindFirstChild("Owner")
-            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then pcall(function() c:Destroy() end) end
-        end
-    end
-end
-
 -- ==============================================================================
 -- LOOP PRINCIPAL 
 -- ==============================================================================
 local function IniciarAutoFarm()
-    -- Thread de atividade natural anti-kick
+    -- Thread de atividade humana constante para Mobile
     task.spawn(function()
         while _G.AutoFarm do
-            task.wait(math.random(30, 55))
+            task.wait(math.random(25, 45))
             pcall(function()
+                -- Força clique virtual para o Delta reconhecer
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+                
+                -- Pulo natural (Somente se não estiver em viagem)
                 local char = LocalPlayer.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
                 
-                if hum and hrp and hrp.Anchored == false then
+                local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+                local soldado = plat and plat:FindFirstChild("WeldConstraint")
+                
+                if hum and not soldado then
                     hum.Jump = true
                 end
             end)
@@ -254,7 +246,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0)
+                        task.wait(2.5) -- Aumentado meio segundo para esfriar o sistema
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -263,7 +255,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0)
+                            task.wait(2.5) -- Viagem suave
                         end
                     end
                 end
@@ -271,7 +263,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(20, 35) / 10) 
+                    task.wait(math.random(30, 50) / 10) -- Espera de 3 a 5 segundos para não ser kickado por "spam" de entregas
                 end
                 
                 task.wait(0.5)
@@ -303,7 +295,7 @@ FrameCorner.CornerRadius = UDim.new(0, 8)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (FÍSICA TWEEN)"
+ToggleBtn.Text = "INICIAR V80 (TAPETE MÁGICO)"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -333,7 +325,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (FÍSICA TWEEN)"
+        ToggleBtn.Text = "INICIAR V80 (TAPETE MÁGICO)"
         LimparTudo()
     end
 end)
