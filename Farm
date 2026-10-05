@@ -1,9 +1,8 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (BYPASS SUPREMO: TAPETE MÁGICO + ANTI-AFK DELTA)
+-- LOW HIGH HUB - V80 (MODO FANTASMA: ZERO VELOCITY + PIVOT TO BYPASS)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local VirtualUser = game:GetService("VirtualUser")
@@ -49,52 +48,57 @@ local function RemoverPlataforma()
 end
 
 -- ==============================================================================
--- SISTEMA WELD: O BONECO É SOLDADO NA PLATAFORMA (BURLA SPEEDHACK 100%)
+-- MODO FANTASMA: BURLA "POTENTIAL OF EXPLOITS" LIMPANDO A VELOCIDADE (VEL=0)
 -- ==============================================================================
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not char or not hrp or not hum then return end
     
+    -- Coloca a plataforma no destino ANTES do jogador chegar
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
         plat = Instance.new("Part")
         plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(15, 2, 15)
+        plat.Size = Vector3.new(20, 2, 20)
         plat.Anchored = true
         plat.Transparency = 1 
         plat.CanCollide = true
         plat.Parent = workspace
     end
+    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
     
-    -- Posição inicial da plataforma embaixo do jogador
-    plat.CFrame = hrp.CFrame - Vector3.new(0, 3.5, 0)
+    -- Desliga a física (O Anti-Cheat não detecta voo/queda)
+    hum.PlatformStand = true 
     
-    -- Solda o jogador na plataforma (o jogo acha que você está parado em cima de um objeto)
-    local solda = Instance.new("WeldConstraint")
-    solda.Part0 = plat
-    solda.Part1 = hrp
-    solda.Parent = plat
+    local startCFrame = char:GetPivot()
+    local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
+    local steps = math.clamp(math.ceil(dist / 140), 1, 150) -- Passos ultra precisos
     
-    -- Desancora o jogador para evitar flag de Lag Switch
-    hrp.Anchored = false 
+    -- Viagem Fantasma
+    for i = 1, steps do
+        char:PivotTo(startCFrame:Lerp(cframeDestino, i/steps))
+        
+        -- O SEGREDO: Limpa a velocidade para o radar do jogo registrar 0 km/h
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        task.wait()
+    end
     
-    local dist = (hrp.Position - cframeDestino.Position).Magnitude
-    local velocidadeMax = 1800 -- Velocidade reduzida e segura. Não altere!
-    local tempoViagem = dist / velocidadeMax
-    if tempoViagem < 0.1 then tempoViagem = 0.1 end 
+    char:PivotTo(cframeDestino)
+    hrp.AssemblyLinearVelocity = Vector3.zero
     
-    -- Move apenas a plataforma. Como você está colado nela, você vai junto.
-    local infoTween = TweenInfo.new(tempoViagem, Enum.EasingStyle.Linear)
-    local tweenPlat = TweenService:Create(plat, infoTween, {CFrame = cframeDestino - Vector3.new(0, 3.5, 0)})
-    
-    tweenPlat:Play()
-    tweenPlat.Completed:Wait()
-    
-    -- Destrói a solda e corrige a posição final
-    solda:Destroy()
-    hrp.CFrame = cframeDestino
     task.wait(0.1)
+    
+    -- Religando o jogador de forma natural
+    hum.PlatformStand = false
+    hum:ChangeState(Enum.HumanoidStateType.Landed)
+    
+    -- O pulo que te mantinha vivo (apenas após estar seguro no chão)
+    task.delay(0.2, function()
+        pcall(function() hum.Jump = true end)
+    end)
 end
 
 local function JobAtivoNaTela()
@@ -178,11 +182,18 @@ local function PuxarEGrudarCaixas(caixas)
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part and part:IsA("BasePart") then
-            part.CanCollide = false; part.Anchored = true 
-            TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
+            part.CanCollide = false
+            part.Anchored = true 
+            
+            -- Também zera a velocidade das caixas!
+            part.AssemblyLinearVelocity = Vector3.zero
+            
+            local cframeDestino = tronco.CFrame
+            -- Move a caixa sem Tween pra evitar flags de exploit em objetos
+            part.CFrame = cframeDestino
         end
     end
-    task.wait(0.8)
+    task.wait(0.5)
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part then
@@ -210,24 +221,19 @@ end
 -- LOOP PRINCIPAL 
 -- ==============================================================================
 local function IniciarAutoFarm()
-    -- Thread de atividade humana constante para Mobile
+    -- Simulador de humano (clique e pulos pontuais seguros)
     task.spawn(function()
         while _G.AutoFarm do
-            task.wait(math.random(25, 45))
+            task.wait(math.random(35, 60))
             pcall(function()
-                -- Força clique virtual para o Delta reconhecer
                 VirtualUser:CaptureController()
                 VirtualUser:ClickButton2(Vector2.new())
                 
-                -- Pulo natural (Somente se não estiver em viagem)
                 local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
                 
-                local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-                local soldado = plat and plat:FindFirstChild("WeldConstraint")
-                
-                if hum and not soldado then
+                -- Só pula se a física estiver ligada (evita kick aéreo)
+                if hum and hum.PlatformStand == false then
                     hum.Jump = true
                 end
             end)
@@ -246,7 +252,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.5) -- Aumentado meio segundo para esfriar o sistema
+                        task.wait(2.5) 
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -255,7 +261,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.5) -- Viagem suave
+                            task.wait(2.5) 
                         end
                     end
                 end
@@ -263,7 +269,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(30, 50) / 10) -- Espera de 3 a 5 segundos para não ser kickado por "spam" de entregas
+                    task.wait(math.random(35, 55) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -273,7 +279,7 @@ local function IniciarAutoFarm()
 end
 
 -- =============================================
--- INTERFACE 
+-- INTERFACE (COM BORDAS ARREDONDADAS)
 -- =============================================
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
@@ -295,11 +301,11 @@ FrameCorner.CornerRadius = UDim.new(0, 8)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (TAPETE MÁGICO)"
+ToggleBtn.Text = "INICIAR V80 (MODO FANTASMA)"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 13
+ToggleBtn.TextSize = 12
 
 local UICorner = Instance.new("UICorner", ToggleBtn)
 UICorner.CornerRadius = UDim.new(0, 6)
@@ -325,7 +331,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (TAPETE MÁGICO)"
+        ToggleBtn.Text = "INICIAR V80 (MODO FANTASMA)"
         LimparTudo()
     end
 end)
