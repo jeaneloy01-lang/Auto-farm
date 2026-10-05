@@ -1,15 +1,37 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (FÍSICA PERFEITA + SNIPER SEM LAG + TEMPOS SEGUROS)
+--         LOW HIGH HUB - V80 (SNIPER VELOCIDADE DA LUZ + VIAGEM SEGURA 70+)
+--       NOVO SISTEMA DE TWEEN (MOVIMENTO LISO) + BYPASS ANTI-CHEAT 267
 -- ==============================================================================
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
+local VirtualUser = game:GetService("VirtualUser")
+
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
 local entregasConcluidas = 0 
+
+-- ==============================================================================
+-- ANTI-AFK DEFINITIVO (BLOQUEIA ERRO 278 DO ROBLOX)
+-- ==============================================================================
+pcall(function()
+    for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
+        connection:Disable()
+    end
+end)
+
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+-- ==============================================================================
+-- FUNÇÕES DO SCRIPT (COM NOVO SISTEMA TWEENSERVICE)
+-- ==============================================================================
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -28,14 +50,26 @@ local function TemCarroSpawnado()
     return false
 end
 
+local function PosicionarPlataforma(cframeDestino)
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if not plat then
+        plat = Instance.new("Part")
+        plat.Name = "LH_Plat_Subterranea"
+        plat.Size = Vector3.new(20, 1, 20)
+        plat.Anchored = true
+        plat.Transparency = 1 
+        plat.CanCollide = true
+        plat.Parent = workspace
+    end
+    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
+end
+
 local function RemoverPlataforma()
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if plat then plat:Destroy() end
 end
 
--- ==============================================================================
--- A PLATAFORMA ANDA JUNTO COM VOCÊ NO MESMO FRAME (QUEDA RESOLVIDA)
--- ==============================================================================
+-- SUA IDEIA APLICADA AQUI: MOVIMENTO POR TWEEN
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
@@ -43,35 +77,31 @@ local function MoverSuperRapido(cframeDestino)
     local startCFrame = hrp.CFrame
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
-    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-    if not plat then
-        plat = Instance.new("Part")
-        plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(20, 2, 20)
-        plat.Anchored = true
-        plat.Transparency = 1 
-        plat.CanCollide = true
-        plat.Parent = workspace
-    end
-    
     hrp.Anchored = true 
-    local passo = 100 
-    local steps = math.ceil(dist / passo)
     
-    if steps < 1 then steps = 1 end 
+    -- Calcula o tempo do Tween para manter uma velocidade altíssima, mas segura
+    local velocidadeMax = 3500 -- Studs por segundo (se tomar kick, diminua para 2500)
+    local tempoViagem = dist / velocidadeMax
+    if tempoViagem < 0.1 then tempoViagem = 0.1 end -- Tempo mínimo pra não bugar a física
     
-    for i = 1, steps do 
-        local novoCFrame = startCFrame:Lerp(cframeDestino, i/steps)
-        hrp.CFrame = novoCFrame
-        plat.CFrame = novoCFrame - Vector3.new(0, 3.5, 0) 
-        task.wait() 
-    end
+    -- EasingStyle Linear faz ele ir reto numa velocidade contínua (como um carro em rodovia)
+    local infoTween = TweenInfo.new(tempoViagem, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, infoTween, {CFrame = cframeDestino})
     
-    hrp.CFrame = cframeDestino
-    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
+    tween:Play()
+    tween.Completed:Wait() -- Pausa o script até o corpo chegar lá com precisão cirúrgica
     
-    task.wait(0.1) -- Pausa da física (Salvou do void)
+    -- Pausa para o servidor reconhecer a nova posição e "acordar" a física
+    task.wait(0.1)
     hrp.Anchored = false
+    
+    -- Pulo Seguro: depois de desancorado
+    task.delay(0.2, function()
+        pcall(function()
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Jump = true end
+        end)
+    end)
 end
 
 local function JobAtivoNaTela()
@@ -101,9 +131,6 @@ local function ObterDestinoPelaUI()
     return nil
 end
 
--- ==============================================================================
--- SNIPER COM MICRO-RESPIRO DE 0.03s PRA NÃO DAR LAG NA GARAGEM
--- ==============================================================================
 local function EscanearMaiorValor()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil, 0 end
@@ -113,7 +140,7 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    while _G.AutoFarm and tempoLimite < 60 do 
+    while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
         local melhorJob = nil
@@ -130,9 +157,9 @@ local function EscanearMaiorValor()
         end
         
         if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
-        if tempoLimite >= 55 and melhorJob then return melhorJob, maiorValor end
+        if tempoLimite >= 115 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait(0.03) 
+        task.wait() 
         tempoLimite = tempoLimite + 1
     end
     return nil, 0
@@ -162,7 +189,7 @@ local function PuxarEGrudarCaixas(caixas)
             TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
         end
     end
-    task.wait(0.8)
+    task.wait(0.8) 
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part then
@@ -186,20 +213,25 @@ local function ObterDropArea(nomeDoDestino)
     return nil
 end
 
-local function LimparCaixasFantasmas()
-    local pastaCaixas = workspace:FindFirstChild("GrabStuff")
-    if pastaCaixas then
-        for _, c in pairs(pastaCaixas:GetChildren()) do
-            local objOwner = c:FindFirstChild("Owner")
-            if objOwner and tostring(objOwner.Value) == LocalPlayer.Name then pcall(function() c:Destroy() end) end
-        end
-    end
-end
-
 -- ==============================================================================
--- LOOP PRINCIPAL (DEDO-DURO LIGADO, MAS ENGANADO COM TEMPOS SEGUROS)
+-- LOOP PRINCIPAL COM PULO PERIÓDICO SEGURO
 -- ==============================================================================
 local function IniciarAutoFarm()
+    task.spawn(function()
+        while _G.AutoFarm do
+            task.wait(math.random(30, 55))
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                
+                if hum and hrp and hrp.Anchored == false then
+                    hum.Jump = true
+                end
+            end)
+        end
+    end)
+
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
@@ -212,7 +244,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.0) -- Tempo pro cronômetro não achar suspeito
+                        task.wait(2.0) 
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -221,7 +253,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.0) -- Tempo de viagem "humano"
+                            task.wait(2.0) 
                         end
                     end
                 end
@@ -229,7 +261,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(20, 35) / 10) -- Jitter pra quebrar padrão
+                    task.wait(math.random(25, 40) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -238,60 +270,39 @@ local function IniciarAutoFarm()
     end)
 end
 
--- =============================================
--- INTERFACE ORIGINAL V80
--- =============================================
+-- ==============================================================================
+-- GUI COM BORDAS CURVAS (UICorner)
+-- ==============================================================================
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = guiName
-ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 300, 0, 100)
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local FrameCorner = Instance.new("UICorner", MainFrame)
-FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.CornerRadius = UDim.new(0, 12)
 
 local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
-ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (FÍSICA PERFEITA)"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Size = UDim2.new(0, 220, 0, 50)
+ToggleBtn.Position = UDim2.new(0.5, -110, 0.5, -25)
+ToggleBtn.Text = "INICIAR V80"
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 13
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 18
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 
-local UICorner = Instance.new("UICorner", ToggleBtn)
-UICorner.CornerRadius = UDim.new(0, 6)
+local BtnCorner = Instance.new("UICorner", ToggleBtn)
+BtnCorner.CornerRadius = UDim.new(0, 8)
 
-local function LimparTudo()
-    _G.AutoFarm = false
-    RemoverPlataforma()
-    local minhaGui = CoreGui:FindFirstChild("LowHigh_MecanicaBR")
-    if minhaGui then minhaGui:Destroy() end
-end
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    _G.AutoFarm = not _G.AutoFarm
-    if _G.AutoFarm then
-        if not TemCarroSpawnado() then
-            Notificar("Aviso", "Spawne seu Caminhão primeiro!")
-            _G.AutoFarm = false
-            return
-        end
-        entregasConcluidas = 0
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        ToggleBtn.Text = "FARM TURBO LIGADO"
-        IniciarAutoFarm()
-    else
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (FÍSICA PERFEITA)"
-        LimparTudo()
-    end
+ToggleBtn.MouseButton1Click:Connect(function() 
+    _G.AutoFarm = not _G.AutoFarm; 
+    ToggleBtn.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(50, 205, 50) or Color3.fromRGB(255, 50, 50); 
+    if _G.AutoFarm then IniciarAutoFarm() end 
 end)
