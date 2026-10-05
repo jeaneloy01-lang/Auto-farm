@@ -1,8 +1,9 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (MODO FANTASMA: ZERO VELOCITY + PIVOT TO BYPASS)
+-- LOW HIGH HUB - V80 (BYPASS DEFINITIVO: BLOQUEADOR DE KICK + ANTI-AFK)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local VirtualUser = game:GetService("VirtualUser")
@@ -12,7 +13,30 @@ _G.AutoFarm = false
 local entregasConcluidas = 0 
 
 -- ==============================================================================
--- ANTI-AFK (FORÇADO PARA DELTA)
+-- ESCUDO SUPREMO: INTERCEPTADOR DE KICK (HOOKMETAMETHOD PARA DELTA)
+-- ==============================================================================
+pcall(function()
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    setreadonly(mt, false)
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        -- Se o jogo tentar usar a função de Kick no seu jogador, ele intercepta e anula!
+        if not checkcaller() and self == LocalPlayer and method == "Kick" then
+            warn("🛡️ O Low High Hub bloqueou uma tentativa de Kick do jogo! Motivo do jogo:", tostring(args[1]))
+            return nil -- Retorna nada, cancelando a expulsão
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
+end)
+
+-- ==============================================================================
+-- ANTI-AFK (FORÇADO PARA DELTA - EVITA ERRO 278)
 -- ==============================================================================
 pcall(function()
     for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
@@ -42,13 +66,8 @@ local function TemCarroSpawnado()
     return false
 end
 
-local function RemoverPlataforma()
-    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-    if plat then plat:Destroy() end
-end
-
 -- ==============================================================================
--- MODO FANTASMA: BURLA "POTENTIAL OF EXPLOITS" LIMPANDO A VELOCIDADE (VEL=0)
+-- SISTEMA DE VIAGEM (VELOCIDADE SEGURA PARA NÃO ACIONAR RADAR)
 -- ==============================================================================
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
@@ -56,49 +75,29 @@ local function MoverSuperRapido(cframeDestino)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not char or not hrp or not hum then return end
     
-    -- Coloca a plataforma no destino ANTES do jogador chegar
-    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-    if not plat then
-        plat = Instance.new("Part")
-        plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(20, 2, 20)
-        plat.Anchored = true
-        plat.Transparency = 1 
-        plat.CanCollide = true
-        plat.Parent = workspace
-    end
-    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
-    
-    -- Desliga a física (O Anti-Cheat não detecta voo/queda)
+    -- Ajuste crucial: Se a velocidade for muito alta, o servidor desconecta sua internet (Erro 267)
+    -- Reduzimos a velocidade para parecer um caminhão muito rápido, mas não um teleporte instantâneo.
     hum.PlatformStand = true 
     
     local startCFrame = char:GetPivot()
     local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
-    local steps = math.clamp(math.ceil(dist / 140), 1, 150) -- Passos ultra precisos
     
-    -- Viagem Fantasma
+    -- Limitador de velocidade inteligente
+    local passo = 90 -- Quanto menor o passo, mais tempo ele demora e menos suspeito ele é
+    local steps = math.clamp(math.ceil(dist / passo), 1, 300)
+    
     for i = 1, steps do
         char:PivotTo(startCFrame:Lerp(cframeDestino, i/steps))
-        
-        -- O SEGREDO: Limpa a velocidade para o radar do jogo registrar 0 km/h
         hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
         task.wait()
     end
     
     char:PivotTo(cframeDestino)
     hrp.AssemblyLinearVelocity = Vector3.zero
-    
     task.wait(0.1)
     
-    -- Religando o jogador de forma natural
     hum.PlatformStand = false
     hum:ChangeState(Enum.HumanoidStateType.Landed)
-    
-    -- O pulo que te mantinha vivo (apenas após estar seguro no chão)
-    task.delay(0.2, function()
-        pcall(function() hum.Jump = true end)
-    end)
 end
 
 local function JobAtivoNaTela()
@@ -184,13 +183,8 @@ local function PuxarEGrudarCaixas(caixas)
         if part and part:IsA("BasePart") then
             part.CanCollide = false
             part.Anchored = true 
-            
-            -- Também zera a velocidade das caixas!
             part.AssemblyLinearVelocity = Vector3.zero
-            
-            local cframeDestino = tronco.CFrame
-            -- Move a caixa sem Tween pra evitar flags de exploit em objetos
-            part.CFrame = cframeDestino
+            part.CFrame = tronco.CFrame
         end
     end
     task.wait(0.5)
@@ -221,7 +215,6 @@ end
 -- LOOP PRINCIPAL 
 -- ==============================================================================
 local function IniciarAutoFarm()
-    -- Simulador de humano (clique e pulos pontuais seguros)
     task.spawn(function()
         while _G.AutoFarm do
             task.wait(math.random(35, 60))
@@ -231,8 +224,6 @@ local function IniciarAutoFarm()
                 
                 local char = LocalPlayer.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
-                
-                -- Só pula se a física estiver ligada (evita kick aéreo)
                 if hum and hum.PlatformStand == false then
                     hum.Jump = true
                 end
@@ -261,7 +252,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(2.5) 
+                            task.wait(3.5) -- Tempo de espera maior para o servidor assimilar as caixas
                         end
                     end
                 end
@@ -301,7 +292,7 @@ FrameCorner.CornerRadius = UDim.new(0, 8)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (MODO FANTASMA)"
+ToggleBtn.Text = "INICIAR V80 (ANTI-KICK SUPREMO)"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -312,7 +303,6 @@ UICorner.CornerRadius = UDim.new(0, 6)
 
 local function LimparTudo()
     _G.AutoFarm = false
-    RemoverPlataforma()
     local minhaGui = CoreGui:FindFirstChild("LowHigh_MecanicaBR")
     if minhaGui then minhaGui:Destroy() end
 end
@@ -331,7 +321,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (MODO FANTASMA)"
+        ToggleBtn.Text = "INICIAR V80 (ANTI-KICK SUPREMO)"
         LimparTudo()
     end
 end)
