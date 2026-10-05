@@ -1,13 +1,12 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (VELOCIDADE LIMITADA EM 550 KM/H PARA BYPASS DO RADAR)
+-- LOW HIGH HUB - V80 (O CLÁSSICO + SIMULADOR DE PULO MOBILE REAL)
 -- ==============================================================================
-
-local VELOCIDADE_MAXIMA = 545 -- Exatos 550 Km/h na física do Roblox (Bypass do Radar)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
+local VirtualInputManager = game:GetService("VirtualInputManager") -- Usaremos para simular toque nativo
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
@@ -30,56 +29,48 @@ local function TemCarroSpawnado()
     return false
 end
 
-local function RemoverPlataforma()
-    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
-    if plat then plat:Destroy() end
-end
-
--- ==============================================================================
--- MOVIMENTO SEGURO (TWEEN SIMULANDO CARRO A 550 KM/H)
--- ==============================================================================
-local function MoverSuperRapido(cframeDestino)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    
+local function PosicionarPlataforma(cframeDestino)
     local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
     if not plat then
         plat = Instance.new("Part")
         plat.Name = "LH_Plat_Subterranea"
-        plat.Size = Vector3.new(20, 2, 20)
+        plat.Size = Vector3.new(20, 1, 20)
         plat.Anchored = true
         plat.Transparency = 1 
         plat.CanCollide = true
         plat.Parent = workspace
     end
+    plat.CFrame = cframeDestino - Vector3.new(0, 3.5, 0)
+end
+
+local function RemoverPlataforma()
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if plat then plat:Destroy() end
+end
+
+local function MoverSuperRapido(cframeDestino)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    local startCFrame = hrp.CFrame
+    local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
     
-    hrp.Anchored = true
+    PosicionarPlataforma(cframeDestino)
     
-    -- Calcula o tempo de viagem para o boneco não ultrapassar os 550 km/h estipulados
-    local dist = (hrp.Position - cframeDestino.Position).Magnitude
-    local tempoViagem = dist / VELOCIDADE_MAXIMA
-    if tempoViagem < 0.1 then tempoViagem = 0.1 end 
+    hrp.Anchored = true 
+    local passo = 160 
+    local steps = math.ceil(dist / passo)
     
-    local infoTween = TweenInfo.new(tempoViagem, Enum.EasingStyle.Linear)
+    if steps < 1 then steps = 1 end 
     
-    local tweenHRP = TweenService:Create(hrp, infoTween, {CFrame = cframeDestino})
-    local tweenPlat = TweenService:Create(plat, infoTween, {CFrame = cframeDestino - Vector3.new(0, 3.5, 0)})
+    for i = 1, steps do 
+        hrp.CFrame = startCFrame:Lerp(cframeDestino, i/steps)
+        task.wait() 
+    end
+    hrp.CFrame = cframeDestino
     
-    tweenHRP:Play()
-    tweenPlat:Play()
-    tweenHRP.Completed:Wait()
-    
-    task.wait(0.1)
+    task.wait(0.1) 
     hrp.Anchored = false
-    
-    -- Dá um pulinho para registrar movimento de Humano ao fim da viagem
-    task.delay(0.2, function()
-        pcall(function()
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.Jump = true end
-        end)
-    end)
 end
 
 local function JobAtivoNaTela()
@@ -118,7 +109,7 @@ local function EscanearMaiorValor()
     if not jobsFolder then return nil, 0 end
 
     local tempoLimite = 0
-    while _G.AutoFarm and tempoLimite < 60 do 
+    while _G.AutoFarm and tempoLimite < 120 do 
         local totalComValor = 0
         local maiorValor = -1
         local melhorJob = nil
@@ -135,9 +126,9 @@ local function EscanearMaiorValor()
         end
         
         if totalComValor == 9 and melhorJob then return melhorJob, maiorValor end
-        if tempoLimite >= 55 and melhorJob then return melhorJob, maiorValor end
+        if tempoLimite >= 115 and melhorJob then return melhorJob, maiorValor end
         
-        task.wait(0.03) 
+        task.wait() 
         tempoLimite = tempoLimite + 1
     end
     return nil, 0
@@ -163,12 +154,11 @@ local function PuxarEGrudarCaixas(caixas)
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part and part:IsA("BasePart") then
-            part.CanCollide = false
-            part.Anchored = true 
-            part.CFrame = tronco.CFrame
+            part.CanCollide = false; part.Anchored = true 
+            TweenService:Create(part, TweenInfo.new(0.4), {CFrame = tronco.CFrame}):Play()
         end
     end
-    task.wait(0.5)
+    task.wait(0.8) 
     for _, caixa in pairs(caixas) do
         local part = caixa:IsA("Model") and caixa.PrimaryPart or caixa
         if part then
@@ -193,9 +183,42 @@ local function ObterDropArea(nomeDoDestino)
 end
 
 -- ==============================================================================
+-- PULO FANTASMA (SIMULAÇÃO DE DEDO PARA ENGANAR O ANTI-CHEAT)
+-- ==============================================================================
+local function AtivarPuloHumano()
+    task.spawn(function()
+        while _G.AutoFarm do
+            task.wait(math.random(15, 30)) -- Simula você pulando aleatoriamente
+            
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                -- Só pula se não estiver teleportando
+                if hrp and hrp.Anchored == false then
+                    
+                    -- Método 1: Envia o comando nativo de apertar a barra de espaço (que aciona o pulo em todos os dispositivos)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                    
+                    -- Método 2: Aciona o estado de pulo direto no motor do Roblox (mais legítimo que hum.Jump = true)
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum and hum:GetState() ~= Enum.HumanoidStateType.Jumping then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- ==============================================================================
 -- LOOP PRINCIPAL 
 -- ==============================================================================
 local function IniciarAutoFarm()
+    AtivarPuloHumano() -- Liga a máquina que imita o seu dedo pulando
+    
     task.spawn(function()
         while _G.AutoFarm do
             pcall(function()
@@ -208,7 +231,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(1.5) 
+                        task.wait(2.0) 
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -225,7 +248,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(25, 40) / 10) 
+                    task.wait(math.random(20, 35) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -235,7 +258,7 @@ local function IniciarAutoFarm()
 end
 
 -- =============================================
--- INTERFACE (BORDAS ARREDONDADAS)
+-- INTERFACE 
 -- =============================================
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
@@ -257,7 +280,7 @@ FrameCorner.CornerRadius = UDim.new(0, 8)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (550 KM/H)"
+ToggleBtn.Text = "INICIAR V80 CLÁSSICO"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -283,11 +306,11 @@ ToggleBtn.MouseButton1Click:Connect(function()
         end
         entregasConcluidas = 0
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        ToggleBtn.Text = "FARM LIGADO (550 KM/H)"
+        ToggleBtn.Text = "FARM TURBO LIGADO"
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (550 KM/H)"
+        ToggleBtn.Text = "INICIAR V80 CLÁSSICO"
         LimparTudo()
     end
 end)
