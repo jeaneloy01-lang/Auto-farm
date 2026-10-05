@@ -1,53 +1,17 @@
 -- ==============================================================================
--- LOW HIGH HUB - V80 (BYPASS DEFINITIVO: BLOQUEADOR DE KICK + ANTI-AFK)
+-- LOW HIGH HUB - V80 (VELOCIDADE LIMITADA EM 550 KM/H PARA BYPASS DO RADAR)
 -- ==============================================================================
+
+local VELOCIDADE_MAXIMA = 545 -- Exatos 550 Km/h na física do Roblox (Bypass do Radar)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
-local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AutoFarm = false
 local entregasConcluidas = 0 
-
--- ==============================================================================
--- ESCUDO SUPREMO: INTERCEPTADOR DE KICK (HOOKMETAMETHOD PARA DELTA)
--- ==============================================================================
-pcall(function()
-    local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
-    setreadonly(mt, false)
-    
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        
-        -- Se o jogo tentar usar a função de Kick no seu jogador, ele intercepta e anula!
-        if not checkcaller() and self == LocalPlayer and method == "Kick" then
-            warn("🛡️ O Low High Hub bloqueou uma tentativa de Kick do jogo! Motivo do jogo:", tostring(args[1]))
-            return nil -- Retorna nada, cancelando a expulsão
-        end
-        
-        return oldNamecall(self, ...)
-    end)
-    setreadonly(mt, true)
-end)
-
--- ==============================================================================
--- ANTI-AFK (FORÇADO PARA DELTA - EVITA ERRO 278)
--- ==============================================================================
-pcall(function()
-    for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
-        connection:Disable()
-    end
-end)
-
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
 
 local function Notificar(titulo, texto)
     StarterGui:SetCore("SendNotification", {Title = titulo; Text = texto; Duration = 3;})
@@ -66,38 +30,56 @@ local function TemCarroSpawnado()
     return false
 end
 
+local function RemoverPlataforma()
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if plat then plat:Destroy() end
+end
+
 -- ==============================================================================
--- SISTEMA DE VIAGEM (VELOCIDADE SEGURA PARA NÃO ACIONAR RADAR)
+-- MOVIMENTO SEGURO (TWEEN SIMULANDO CARRO A 550 KM/H)
 -- ==============================================================================
 local function MoverSuperRapido(cframeDestino)
     local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not char or not hrp or not hum then return end
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
     
-    -- Ajuste crucial: Se a velocidade for muito alta, o servidor desconecta sua internet (Erro 267)
-    -- Reduzimos a velocidade para parecer um caminhão muito rápido, mas não um teleporte instantâneo.
-    hum.PlatformStand = true 
-    
-    local startCFrame = char:GetPivot()
-    local dist = (startCFrame.Position - cframeDestino.Position).Magnitude
-    
-    -- Limitador de velocidade inteligente
-    local passo = 90 -- Quanto menor o passo, mais tempo ele demora e menos suspeito ele é
-    local steps = math.clamp(math.ceil(dist / passo), 1, 300)
-    
-    for i = 1, steps do
-        char:PivotTo(startCFrame:Lerp(cframeDestino, i/steps))
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        task.wait()
+    local plat = workspace:FindFirstChild("LH_Plat_Subterranea")
+    if not plat then
+        plat = Instance.new("Part")
+        plat.Name = "LH_Plat_Subterranea"
+        plat.Size = Vector3.new(20, 2, 20)
+        plat.Anchored = true
+        plat.Transparency = 1 
+        plat.CanCollide = true
+        plat.Parent = workspace
     end
     
-    char:PivotTo(cframeDestino)
-    hrp.AssemblyLinearVelocity = Vector3.zero
-    task.wait(0.1)
+    hrp.Anchored = true
     
-    hum.PlatformStand = false
-    hum:ChangeState(Enum.HumanoidStateType.Landed)
+    -- Calcula o tempo de viagem para o boneco não ultrapassar os 550 km/h estipulados
+    local dist = (hrp.Position - cframeDestino.Position).Magnitude
+    local tempoViagem = dist / VELOCIDADE_MAXIMA
+    if tempoViagem < 0.1 then tempoViagem = 0.1 end 
+    
+    local infoTween = TweenInfo.new(tempoViagem, Enum.EasingStyle.Linear)
+    
+    local tweenHRP = TweenService:Create(hrp, infoTween, {CFrame = cframeDestino})
+    local tweenPlat = TweenService:Create(plat, infoTween, {CFrame = cframeDestino - Vector3.new(0, 3.5, 0)})
+    
+    tweenHRP:Play()
+    tweenPlat:Play()
+    tweenHRP.Completed:Wait()
+    
+    task.wait(0.1)
+    hrp.Anchored = false
+    
+    -- Dá um pulinho para registrar movimento de Humano ao fim da viagem
+    task.delay(0.2, function()
+        pcall(function()
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Jump = true end
+        end)
+    end)
 end
 
 local function JobAtivoNaTela()
@@ -183,7 +165,6 @@ local function PuxarEGrudarCaixas(caixas)
         if part and part:IsA("BasePart") then
             part.CanCollide = false
             part.Anchored = true 
-            part.AssemblyLinearVelocity = Vector3.zero
             part.CFrame = tronco.CFrame
         end
     end
@@ -217,22 +198,6 @@ end
 local function IniciarAutoFarm()
     task.spawn(function()
         while _G.AutoFarm do
-            task.wait(math.random(35, 60))
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new())
-                
-                local char = LocalPlayer.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hum and hum.PlatformStand == false then
-                    hum.Jump = true
-                end
-            end)
-        end
-    end)
-
-    task.spawn(function()
-        while _G.AutoFarm do
             pcall(function()
                 local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
@@ -243,7 +208,7 @@ local function IniciarAutoFarm()
                     if melhorJob then
                         game:GetService("ReplicatedStorage").Events.PromptTransJob:FireServer(melhorJob, "Start")
                         Notificar("Sniper", "R$ " .. valor)
-                        task.wait(2.5) 
+                        task.wait(1.5) 
                     end
                 else
                     local caixas = ColetarTodasMinhasCaixas()
@@ -252,7 +217,7 @@ local function IniciarAutoFarm()
                         if area then
                             PuxarEGrudarCaixas(caixas)
                             MoverSuperRapido(area.CFrame + Vector3.new(0, 5, 0))
-                            task.wait(3.5) -- Tempo de espera maior para o servidor assimilar as caixas
+                            task.wait(2.0) 
                         end
                     end
                 end
@@ -260,7 +225,7 @@ local function IniciarAutoFarm()
                 if JobAtivoNaTela() == false then
                     entregasConcluidas = entregasConcluidas + 1
                     Notificar("Low High", "Entrega " .. entregasConcluidas .. " concluída!")
-                    task.wait(math.random(35, 55) / 10) 
+                    task.wait(math.random(25, 40) / 10) 
                 end
                 
                 task.wait(0.5)
@@ -270,7 +235,7 @@ local function IniciarAutoFarm()
 end
 
 -- =============================================
--- INTERFACE (COM BORDAS ARREDONDADAS)
+-- INTERFACE (BORDAS ARREDONDADAS)
 -- =============================================
 local guiName = "LowHigh_MecanicaBR"
 pcall(function() if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end end)
@@ -292,17 +257,18 @@ FrameCorner.CornerRadius = UDim.new(0, 8)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0, 200, 0, 50)
 ToggleBtn.Position = UDim2.new(0.5, -100, 0.5, -25)
-ToggleBtn.Text = "INICIAR V80 (ANTI-KICK SUPREMO)"
+ToggleBtn.Text = "INICIAR V80 (550 KM/H)"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 12
+ToggleBtn.TextSize = 13
 
 local UICorner = Instance.new("UICorner", ToggleBtn)
 UICorner.CornerRadius = UDim.new(0, 6)
 
 local function LimparTudo()
     _G.AutoFarm = false
+    RemoverPlataforma()
     local minhaGui = CoreGui:FindFirstChild("LowHigh_MecanicaBR")
     if minhaGui then minhaGui:Destroy() end
 end
@@ -317,11 +283,11 @@ ToggleBtn.MouseButton1Click:Connect(function()
         end
         entregasConcluidas = 0
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        ToggleBtn.Text = "FARM TURBO LIGADO"
+        ToggleBtn.Text = "FARM LIGADO (550 KM/H)"
         IniciarAutoFarm()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.Text = "INICIAR V80 (ANTI-KICK SUPREMO)"
+        ToggleBtn.Text = "INICIAR V80 (550 KM/H)"
         LimparTudo()
     end
 end)
