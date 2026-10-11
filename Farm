@@ -55,8 +55,8 @@ local function MoverSuperRapido(cframeDestino)
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
     
-    local distanciaMaxima = 20 -- Limite seguro descoberto
-    local tempoEspera = 0.01 -- Intervalo de segurança do servidor
+    local distanciaMaxima = 25 -- Limite seguro descoberto
+    local tempoEspera = 0.1 -- Intervalo de segurança do servidor
     
     while _G.AutoFarm do
         local posicaoAtual = hrp.Position
